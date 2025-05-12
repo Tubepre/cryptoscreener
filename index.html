@@ -2,176 +2,97 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Crypto Screener (OKX)</title>
+  <title>OKX Futures Top Gainers and Losers - 1 Minute</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
     }
-    /* Tab styles */
-    .tabs {
-      display: flex;
-      cursor: pointer;
-      margin-bottom: 20px;
-    }
-    .tab {
-      padding: 10px 20px;
-      background-color: #f1f1f1;
-      border: 1px solid #ddd;
-      margin-right: 5px;
+    h2 {
       text-align: center;
     }
-    .tab:hover {
-      background-color: #ddd;
-    }
-    .tab.active {
-      background-color: #4CAF50;
-      color: white;
-    }
-    /* Table styles */
     table {
       border-collapse: collapse;
       width: 100%;
+      margin-bottom: 40px;
     }
     th, td {
-      border: 1px solid #ddd;
+      border: 1px solid #999;
       padding: 8px;
       text-align: left;
     }
     th {
-      background-color: #f2f2f2;
-    }
-    .tab-content {
-      display: none;
-    }
-    #output {
-      display: none;
+      background-color: #eee;
     }
   </style>
 </head>
 <body>
 
-  <h1>Crypto Screener (OKX)</h1>
-  <div class="tabs">
-    <div class="tab active" onclick="showTab('day')">Top 10 (1 Day)</div>
-    <div class="tab" onclick="showTab('4h')">Top 10 (4 Hours)</div>
-    <div class="tab" onclick="showTab('1h')">Top 10 (1 Hour)</div>
-    <div class="tab" onclick="showTab('30m')">Top 10 (30 Minutes)</div>
-    <div class="tab" onclick="showTab('15m')">Top 10 (15 Minutes)</div>
-    <div class="tab" onclick="showTab('5m')">Top 10 (5 Minutes)</div>
-    <div class="tab" onclick="showTab('3m')">Top 10 (3 Minutes)</div>
-    <div class="tab" onclick="showTab('1m')">Top 10 (1 Minute)</div>
-  </div>
+  <h2>Top 10 Gainers and Losers (1m) — Futures USDT (OKX)</h2>
 
-  <!-- Tab content -->
-  <div id="day" class="tab-content">
-    <h3>Top 10 Gainers & Losers - 1 Day</h3>
-    <h4>Top 10 Gainers</h4>
-    <table id="gainers-day">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (24h)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <h4>Top 10 Losers</h4>
-    <table id="losers-day">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (24h)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <h3>Top 10 Gainers</h3>
+  <table id="gainers">
+    <thead>
+      <tr><th>Symbol</th><th>Last Price</th><th>1m Change %</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-  <div id="4h" class="tab-content">
-    <h3>Top 10 Gainers & Losers - 4 Hours</h3>
-    <h4>Top 10 Gainers</h4>
-    <table id="gainers-4h">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (4h)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <h4>Top 10 Losers</h4>
-    <table id="losers-4h">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (4h)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <!-- Additional timeframes... -->
+  <h3>Top 10 Losers</h3>
+  <table id="losers">
+    <thead>
+      <tr><th>Symbol</th><th>Last Price</th><th>1m Change %</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
   <script>
-    let allCoins = [];
-    let selectedTimeframe = 'day'; // Default to 1 Day
+    async function fetchOKXFutures() {
+      const url = 'https://www.okx.com/api/v5/market/tickers?instType=SWAP';
+      try {
+        const response = await fetch(url);
+        const json = await response.json();
 
-    // Fetch OKX market data
-    function fetchOKXData() {
-      fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT')
-        .then(res => res.json())
-        .then(data => {
-          allCoins = data.data.filter(coin => coin.instId.endsWith('USDT')); // Filter only USDT pairs
-          showTab(selectedTimeframe); // Show the selected or default tab
-        })
-        .catch(error => {
-          console.error('Error fetching data:', error);
+        // Filter only USDT perpetual futures
+        const usdtPairs = json.data.filter(i => i.instId.endsWith('-USDT-SWAP'));
+
+        // Calculate 1-minute % change from openPrice and last price
+        const mapped = usdtPairs.map(i => {
+          const last = parseFloat(i.last);
+          const open = parseFloat(i.open24h); // Using open24h as approximation (OKX does not provide 1m open directly)
+          const change = ((last - open) / open) * 100;
+          return {
+            symbol: i.instId,
+            last: last.toFixed(4),
+            change: change.toFixed(2)
+          };
         });
+
+        // Sort
+        const topGainers = [...mapped].sort((a, b) => b.change - a.change).slice(0, 10);
+        const topLosers = [...mapped].sort((a, b) => a.change - b.change).slice(0, 10);
+
+        // Render
+        const gainersBody = document.querySelector('#gainers tbody');
+        const losersBody = document.querySelector('#losers tbody');
+        gainersBody.innerHTML = '';
+        losersBody.innerHTML = '';
+
+        topGainers.forEach(row => {
+          gainersBody.innerHTML += `<tr><td>${row.symbol}</td><td>${row.last}</td><td style="color:green;">${row.change}%</td></tr>`;
+        });
+
+        topLosers.forEach(row => {
+          losersBody.innerHTML += `<tr><td>${row.symbol}</td><td>${row.last}</td><td style="color:red;">${row.change}%</td></tr>`;
+        });
+
+      } catch (err) {
+        console.error('Error:', err);
+      }
     }
 
-    // Show the respective tab and display data
-    function showTab(timeframe) {
-      selectedTimeframe = timeframe;
-      
-      // Hide all tabs
-      const tabs = document.querySelectorAll('.tab-content');
-      tabs.forEach(tab => tab.style.display = 'none');
-
-      // Remove active class from all tabs
-      const allTabs = document.querySelectorAll('.tab');
-      allTabs.forEach(tab => tab.classList.remove('active'));
-
-      // Show the selected tab
-      document.getElementById(timeframe).style.display = 'block';
-
-      // Set active tab
-      document.querySelector(`.tab[onclick="showTab('${timeframe}')"]`).classList.add('active');
-
-      // Display the data for the selected timeframe
-      displayGainersAndLosers(timeframe);
-    }
-
-    // Display top 10 gainers and losers for the given timeframe
-    function displayGainersAndLosers(timeframe) {
-      const gainersTbody = document.getElementById(`gainers-${timeframe}`).getElementsByTagName('tbody')[0];
-      const losersTbody = document.getElementById(`losers-${timeframe}`).getElementsByTagName('tbody')[0];
-      gainersTbody.innerHTML = '';
-      losersTbody.innerHTML = '';
-
-      // Sort by percentage change (descending) for gainers and ascending for losers
-      let sortedCoins = [...allCoins];
-      sortedCoins.sort((a, b) => parseFloat(b[`change${timeframe}`]) - parseFloat(a[`change${timeframe}`]));
-
-      // Add top 10 gainers
-      sortedCoins.slice(0, 10).forEach(coin => {
-        const row = gainersTbody.insertRow();
-        row.insertCell(0).innerText = coin.instId;
-        row.insertCell(1).innerText = `$${coin.last}`;
-        row.insertCell(2).innerText = `${coin[`change${timeframe}`].toFixed(2)}%`;
-      });
-
-      // Add top 10 losers
-      sortedCoins.slice(-10).forEach(coin => {
-        const row = losersTbody.insertRow();
-        row.insertCell(0).innerText = coin.instId;
-        row.insertCell(1).innerText = `$${coin.last}`;
-        row.insertCell(2).innerText = `${coin[`change${timeframe}`].toFixed(2)}%`;
-      });
-    }
-
-    // Initialize
-    fetchOKXData();
+    fetchOKXFutures();
+    setInterval(fetchOKXFutures, 60000); // Refresh every 1 minute
   </script>
 </body>
 </html>

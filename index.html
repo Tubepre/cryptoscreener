@@ -1,93 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Crypto Screener (OKX + CoinGecko)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Top 10 Gainers & Losers (24h)</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
-    .coin { margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #f0f0f0; }
+    h2 { margin-top: 40px; }
   </style>
 </head>
 <body>
-  <h1>Crypto Screener (OKX + CoinGecko)</h1>
-  <input type="text" id="search" placeholder="Search by symbol (e.g. BTC-USDT)" />
-  <div id="output">Loading...</div>
+  <h1>Crypto Market - Top Gainers & Losers (24h)</h1>
+  <div id="tables">Loading...</div>
 
   <script>
-    let allCoins = [];
-    let marketData = {};
+    async function loadData() {
+      const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=250');
+      const coins = await res.json();
 
-    // Fetch OKX data
-    fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT')
-      .then(res => res.json())
-      .then(data => {
-        allCoins = data.data.filter(c => c.instId.endsWith('-USDT')); // Only USDT pairs
-        fetchCoinGeckoData();
+      // Sort by 24h change
+      const sorted = coins.sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h);
+
+      const topGainers = sorted.slice(0, 10);
+      const topLosers = sorted.slice(-10).reverse();
+
+      const tableGainers = generateTable(topGainers, 'Top 10 Gainers (24h)');
+      const tableLosers = generateTable(topLosers, 'Top 10 Losers (24h)');
+
+      document.getElementById('tables').innerHTML = tableGainers + tableLosers;
+    }
+
+    function generateTable(data, title) {
+      let html = `<h2>${title}</h2><table><tr><th>Name</th><th>Price (USD)</th><th>% Change (24h)</th></tr>`;
+      data.forEach(coin => {
+        html += `<tr>
+          <td>${coin.name}</td>
+          <td>$${coin.current_price.toFixed(2)}</td>
+          <td style="color: ${coin.price_change_percentage_24h >= 0 ? 'green' : 'red'}">
+            ${coin.price_change_percentage_24h.toFixed(2)}%
+          </td>
+        </tr>`;
       });
-
-    // Fetch CoinGecko data
-    function fetchCoinGeckoData() {
-      fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=250')
-        .then(res => res.json())
-        .then(data => {
-          data.forEach(coin => {
-            marketData[coin.symbol.toUpperCase()] = coin;
-          });
-          mergeData();
-        });
+      html += '</table>';
+      return html;
     }
 
-    // Merge OKX with CoinGecko data
-    function mergeData() {
-      const combinedData = allCoins.map(coin => {
-        const symbol = coin.instId.split('-')[0].toUpperCase();
-        const cgData = marketData[symbol];
-
-        if (cgData) {
-          return {
-            instId: coin.instId,
-            lastPrice: coin.last,
-            marketCap: cgData.market_cap,
-            volume: cgData.total_volume,
-            symbol: symbol
-          };
-        }
-      }).filter(Boolean);
-
-      combinedData.sort((a, b) => b.marketCap - a.marketCap); // Sort by market cap
-      displayCoins(combinedData);
-    }
-
-    // Display data
-    function displayCoins(coins) {
-      const output = document.getElementById('output');
-      output.innerHTML = coins.map(item => `
-        <div class="coin">
-          <strong>${item.instId}</strong> - Last Price: $${item.lastPrice} - Market Cap: $${item.marketCap.toLocaleString()} - Volume: $${item.volume.toLocaleString()}
-        </div>
-      `).join('');
-    }
-
-    // Search input
-    document.getElementById('search').addEventListener('input', function () {
-      const keyword = this.value.toUpperCase();
-      const filtered = allCoins.filter(c => c.instId.includes(keyword));
-      const combined = filtered.map(coin => {
-        const symbol = coin.instId.split('-')[0].toUpperCase();
-        const cgData = marketData[symbol];
-        if (cgData) {
-          return {
-            instId: coin.instId,
-            lastPrice: coin.last,
-            marketCap: cgData.market_cap,
-            volume: cgData.total_volume,
-            symbol: symbol
-          };
-        }
-      }).filter(Boolean);
-      displayCoins(combined);
-    });
+    loadData();
   </script>
 </body>
 </html>

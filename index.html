@@ -42,6 +42,9 @@
     th {
       background-color: #f2f2f2;
     }
+    .tab-content {
+      display: none;
+    }
     #output {
       display: none;
     }
@@ -81,6 +84,25 @@
   </div>
 
   <!-- Repeat similar blocks for each timeframe (4h, 1h, etc.) -->
+  <div id="4h" class="tab-content">
+    <h3>Top 10 Gainers & Losers - 4 Hours</h3>
+    <h4>Top 10 Gainers</h4>
+    <table id="gainers-4h">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (4h)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <h4>Top 10 Losers</h4>
+    <table id="losers-4h">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (4h)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- Additional timeframes... -->
 
   <script>
     let allCoins = [];
@@ -91,7 +113,7 @@
         .then(res => res.json())
         .then(data => {
           allCoins = data.data.filter(coin => coin.instId.endsWith('USDT')); // Filter only USDT pairs
-          showTab('day');
+          showTab('day'); // Default to 'day' tab after data is loaded
         });
     }
 
@@ -111,44 +133,12 @@
       // Set active tab
       document.querySelector(`.tab[onclick="showTab('${timeframe}')"]`).classList.add('active');
 
-      // Fetch and display data for the selected timeframe
-      if (timeframe === 'day') {
-        displayGainersAndLosers('day');
-      } else {
-        displayRealTimeData(timeframe);
-      }
+      // Display the data for the selected timeframe
+      displayGainersAndLosers(timeframe);
     }
 
-    // Display top 10 gainers and losers for the day
+    // Display top 10 gainers and losers for the given timeframe
     function displayGainersAndLosers(timeframe) {
-      const gainersTbody = document.getElementById(`gainers-${timeframe}`).getElementsByTagName('tbody')[0];
-      const losersTbody = document.getElementById(`losers-${timeframe}`).getElementsByTagName('tbody')[0];
-      gainersTbody.innerHTML = '';
-      losersTbody.innerHTML = '';
-
-      // Sort by percentage change (descending) for gainers and ascending for losers
-      let sortedCoins = [...allCoins];
-      sortedCoins.sort((a, b) => parseFloat(b[`change${timeframe}`]) - parseFloat(a[`change${timeframe}`]));
-
-      // Add top 10 gainers
-      sortedCoins.slice(0, 10).forEach(coin => {
-        const row = gainersTbody.insertRow();
-        row.insertCell(0).innerText = coin.instId;
-        row.insertCell(1).innerText = `$${coin.last}`;
-        row.insertCell(2).innerText = `${coin[`change${timeframe}`].toFixed(2)}%`;
-      });
-
-      // Add top 10 losers
-      sortedCoins.slice(-10).forEach(coin => {
-        const row = losersTbody.insertRow();
-        row.insertCell(0).innerText = coin.instId;
-        row.insertCell(1).innerText = `$${coin.last}`;
-        row.insertCell(2).innerText = `${coin[`change${timeframe}`].toFixed(2)}%`;
-      });
-    }
-
-    // Display real-time data (OKX for different timeframes)
-    function displayRealTimeData(timeframe) {
       const gainersTbody = document.getElementById(`gainers-${timeframe}`).getElementsByTagName('tbody')[0];
       const losersTbody = document.getElementById(`losers-${timeframe}`).getElementsByTagName('tbody')[0];
       gainersTbody.innerHTML = '';

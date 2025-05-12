@@ -24,6 +24,12 @@
     th {
       background-color: #eee;
     }
+    .positive {
+      color: green;
+    }
+    .negative {
+      color: red;
+    }
   </style>
 </head>
 <body>
@@ -47,52 +53,67 @@
   </table>
 
   <script>
-    async function fetchOKXFutures() {
-      const url = 'https://www.okx.com/api/v5/market/tickers?instType=SWAP';
+    const symbols = [
+      'BTC-USDT-SWAP',
+      'ETH-USDT-SWAP',
+      'LTC-USDT-SWAP',
+      'XRP-USDT-SWAP',
+      'ADA-USDT-SWAP',
+      'DOT-USDT-SWAP',
+      'LINK-USDT-SWAP',
+      'BCH-USDT-SWAP',
+      'EOS-USDT-SWAP',
+      'TRX-USDT-SWAP'
+    ];
+
+    async function fetchCandleData(symbol) {
+      const url = `https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=1m&limit=2`;
       try {
         const response = await fetch(url);
         const json = await response.json();
-
-        // Filter only USDT perpetual futures
-        const usdtPairs = json.data.filter(i => i.instId.endsWith('-USDT-SWAP'));
-
-        // Calculate 1-minute % change from openPrice and last price
-        const mapped = usdtPairs.map(i => {
-          const last = parseFloat(i.last);
-          const open = parseFloat(i.open24h); // Using open24h as approximation (OKX does not provide 1m open directly)
-          const change = ((last - open) / open) * 100;
-          return {
-            symbol: i.instId,
-            last: last.toFixed(4),
-            change: change.toFixed(2)
-          };
-        });
-
-        // Sort
-        const topGainers = [...mapped].sort((a, b) => b.change - a.change).slice(0, 10);
-        const topLosers = [...mapped].sort((a, b) => a.change - b.change).slice(0, 10);
-
-        // Render
-        const gainersBody = document.querySelector('#gainers tbody');
-        const losersBody = document.querySelector('#losers tbody');
-        gainersBody.innerHTML = '';
-        losersBody.innerHTML = '';
-
-        topGainers.forEach(row => {
-          gainersBody.innerHTML += `<tr><td>${row.symbol}</td><td>${row.last}</td><td style="color:green;">${row.change}%</td></tr>`;
-        });
-
-        topLosers.forEach(row => {
-          losersBody.innerHTML += `<tr><td>${row.symbol}</td><td>${row.last}</td><td style="color:red;">${row.change}%</td></tr>`;
-        });
-
+        if (json.code !== '0' || !json.data || json.data.length < 1) {
+          console.error(`Error fetching data for ${symbol}:`, json.msg || 'No data');
+          return null;
+        }
+        const candle = json.data[0];
+        const open = parseFloat(candle[1]);
+        const close = parseFloat(candle[4]);
+        const change = ((close - open) / open) * 100;
+        return {
+          symbol,
+          last: close.toFixed(4),
+          change: change.toFixed(2)
+        };
       } catch (err) {
-        console.error('Error:', err);
+        console.error(`Error fetching data for ${symbol}:`, err);
+        return null;
       }
     }
 
-    fetchOKXFutures();
-    setInterval(fetchOKXFutures, 60000); // Refresh every 1 minute
+    async function updateData() {
+      const promises = symbols.map(fetchCandleData);
+      const results = await Promise.all(promises);
+      const validResults = results.filter(r => r !== null);
+
+      const gainers = [...validResults].sort((a, b) => b.change - a.change).slice(0, 10);
+      const losers = [...validResults].sort((a, b) => a.change - b.change).slice(0, 10);
+
+      const gainersBody = document.querySelector('#gainers tbody');
+      const losersBody = document.querySelector('#losers tbody');
+      gainersBody.innerHTML = '';
+      losersBody.innerHTML = '';
+
+      gainers.forEach(row => {
+        gainersBody.innerHTML += `<tr><td>${row.symbol}</td><td>${row.last}</td><td class="positive">${row.change}%</td></tr>`;
+      });
+
+      losers.forEach(row => {
+        losersBody.innerHTML += `<tr><td>${row.symbol}</td><td>${row.last}</td><td class="negative">${row.change}%</td></tr>`;
+      });
+    }
+
+    updateData();
+    setInterval(updateData, 60000); // Refresh every 1 minute
   </script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>OKX Futures (USDT Perpetual) Screener</title>
+  <title>OKX USDT Perpetual Screener</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     h2 { margin-top: 40px; }
@@ -12,7 +12,7 @@
   </style>
 </head>
 <body>
-  <h1>OKX USDT Perpetual Futures Screener</h1>
+  <h1>OKX USDT Perpetual Screener</h1>
   <div id="gain-table">Loading gainers...</div>
   <div id="lose-table">Loading losers...</div>
 
@@ -42,12 +42,11 @@
 
     function processAndDisplay() {
       const combined = okxCoins.map(c => {
-        const symbol = c.instId.split('-')[0]; // BTC from BTC-USDT-SWAP
+        const symbol = c.instId.split('-')[0]; // e.g. BTC from BTC-USDT-SWAP
         const gecko = coinGeckoData[symbol];
 
         if (gecko) {
           return {
-            name: gecko.name,
             symbol: symbol,
             price: parseFloat(c.last),
             change: gecko.price_change_percentage_24h || 0
@@ -66,10 +65,9 @@
     function displayTable(data, title, containerId) {
       let html = `<h2>${title}</h2>`;
       html += `<table>
-        <tr><th>Name</th><th>Symbol</th><th>Price</th><th>24h Change (%)</th></tr>`;
+        <tr><th>Symbol</th><th>Price</th><th>24h Change (%)</th></tr>`;
       data.forEach(item => {
         html += `<tr>
-          <td>${item.name}</td>
           <td>${item.symbol}</td>
           <td>$${item.price.toFixed(2)}</td>
           <td style="color:${item.change >= 0 ? 'green' : 'red'}">${item.change.toFixed(2)}%</td>

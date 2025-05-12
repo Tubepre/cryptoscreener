@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Crypto Screener (OKX + CoinGecko) by tubepre</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Crypto Screener (OKX + CoinGecko)</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     .coin { margin: 10px 0; }
@@ -11,7 +11,7 @@
 </head>
 <body>
   <h1>Crypto Screener (OKX + CoinGecko)</h1>
-  <input type="text" id="search" placeholder="Search by symbol (e.g. BTC-USDT)">
+  <input type="text" id="search" placeholder="Search by symbol (e.g. BTC-USDT)" />
   <div id="output">Loading...</div>
 
   <script>
@@ -22,60 +22,72 @@
     fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT')
       .then(res => res.json())
       .then(data => {
-        allCoins = data.data;
+        allCoins = data.data.filter(c => c.instId.endsWith('-USDT')); // Only USDT pairs
         fetchCoinGeckoData();
       });
 
-    // Fetch CoinGecko data for market cap and other info
+    // Fetch CoinGecko data
     function fetchCoinGeckoData() {
-      fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd')
+      fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=250')
         .then(res => res.json())
         .then(data => {
-          // Store CoinGecko data in an object with coin symbol as key
           data.forEach(coin => {
-            marketData[coin.id] = coin;
+            marketData[coin.symbol.toUpperCase()] = coin;
           });
           mergeData();
         });
     }
 
-    // Merge OKX and CoinGecko data
+    // Merge OKX with CoinGecko data
     function mergeData() {
       const combinedData = allCoins.map(coin => {
-        const coinSymbol = coin.instId.split('-')[0]; // Get the coin symbol (e.g., BTC)
-        const coinMarketData = marketData[coinSymbol.toLowerCase()]; // Get CoinGecko data
+        const symbol = coin.instId.split('-')[0].toUpperCase();
+        const cgData = marketData[symbol];
 
-        if (coinMarketData) {
+        if (cgData) {
           return {
             instId: coin.instId,
             lastPrice: coin.last,
-            marketCap: coinMarketData.market_cap,
-            volume: coinMarketData.total_volumes,
-            symbol: coinSymbol
+            marketCap: cgData.market_cap,
+            volume: cgData.total_volume,
+            symbol: symbol
           };
         }
-      }).filter(item => item !== undefined);
+      }).filter(Boolean);
 
+      combinedData.sort((a, b) => b.marketCap - a.marketCap); // Sort by market cap
       displayCoins(combinedData);
     }
 
-    // Display the combined data
+    // Display data
     function displayCoins(coins) {
       const output = document.getElementById('output');
       output.innerHTML = coins.map(item => `
         <div class="coin">
-          <strong>${item.instId}</strong> - Last Price: ${item.lastPrice} - Market Cap: $${item.marketCap.toLocaleString()} - Volume: $${item.volume.toLocaleString()}
+          <strong>${item.instId}</strong> - Last Price: $${item.lastPrice} - Market Cap: $${item.marketCap.toLocaleString()} - Volume: $${item.volume.toLocaleString()}
         </div>
       `).join('');
     }
 
-    // Filter coins based on user search input
+    // Search input
     document.getElementById('search').addEventListener('input', function () {
       const keyword = this.value.toUpperCase();
       const filtered = allCoins.filter(c => c.instId.includes(keyword));
-      displayCoins(filtered);
+      const combined = filtered.map(coin => {
+        const symbol = coin.instId.split('-')[0].toUpperCase();
+        const cgData = marketData[symbol];
+        if (cgData) {
+          return {
+            instId: coin.instId,
+            lastPrice: coin.last,
+            marketCap: cgData.market_cap,
+            volume: cgData.total_volume,
+            symbol: symbol
+          };
+        }
+      }).filter(Boolean);
+      displayCoins(combined);
     });
   </script>
 </body>
 </html>
-

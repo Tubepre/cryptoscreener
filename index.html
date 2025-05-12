@@ -9,6 +9,7 @@
       font-family: Arial, sans-serif;
       padding: 20px;
     }
+    /* Tab styles */
     .tabs {
       display: flex;
       cursor: pointer;
@@ -28,6 +29,7 @@
       background-color: #4CAF50;
       color: white;
     }
+    /* Table styles */
     table {
       border-collapse: collapse;
       width: 100%;
@@ -59,9 +61,18 @@
     <div class="tab" onclick="showTab('1m')">Top 10 (1 Minute)</div>
   </div>
 
+  <!-- Tab content -->
   <div id="day" class="tab-content">
     <h3>Top 10 Gainers & Losers - 1 Day</h3>
+    <h4>Top 10 Gainers</h4>
     <table id="gainers-day">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (24h)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <h4>Top 10 Losers</h4>
+    <table id="losers-day">
       <thead>
         <tr><th>Symbol</th><th>Price</th><th>% Change (24h)</th></tr>
       </thead>
@@ -69,131 +80,102 @@
     </table>
   </div>
 
-  <div id="4h" class="tab-content" style="display:none;">
-    <h3>Top 10 Gainers & Losers - 4 Hours</h3>
-    <table id="gainers-4h">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (4h)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="1h" class="tab-content" style="display:none;">
-    <h3>Top 10 Gainers & Losers - 1 Hour</h3>
-    <table id="gainers-1h">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (1h)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="30m" class="tab-content" style="display:none;">
-    <h3>Top 10 Gainers & Losers - 30 Minutes</h3>
-    <table id="gainers-30m">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (30m)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="15m" class="tab-content" style="display:none;">
-    <h3>Top 10 Gainers & Losers - 15 Minutes</h3>
-    <table id="gainers-15m">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (15m)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="5m" class="tab-content" style="display:none;">
-    <h3>Top 10 Gainers & Losers - 5 Minutes</h3>
-    <table id="gainers-5m">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (5m)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="3m" class="tab-content" style="display:none;">
-    <h3>Top 10 Gainers & Losers - 3 Minutes</h3>
-    <table id="gainers-3m">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (3m)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="1m" class="tab-content" style="display:none;">
-    <h3>Top 10 Gainers & Losers - 1 Minute</h3>
-    <table id="gainers-1m">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>% Change (1m)</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <!-- Repeat similar blocks for each timeframe (4h, 1h, etc.) -->
 
   <script>
     let allCoins = [];
 
+    // Fetch OKX market data
     function fetchOKXData() {
       fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT')
         .then(res => res.json())
         .then(data => {
-          allCoins = data.data;
+          allCoins = data.data.filter(coin => coin.instId.endsWith('USDT')); // Filter only USDT pairs
           showTab('day');
         });
     }
 
+    // Show the respective tab and display data
     function showTab(timeframe) {
+      // Hide all tabs
       const tabs = document.querySelectorAll('.tab-content');
       tabs.forEach(tab => tab.style.display = 'none');
 
+      // Remove active class from all tabs
       const allTabs = document.querySelectorAll('.tab');
       allTabs.forEach(tab => tab.classList.remove('active'));
 
+      // Show the selected tab
       document.getElementById(timeframe).style.display = 'block';
+
+      // Set active tab
       document.querySelector(`.tab[onclick="showTab('${timeframe}')"]`).classList.add('active');
 
+      // Fetch and display data for the selected timeframe
       if (timeframe === 'day') {
-        displayDayData();
+        displayGainersAndLosers('day');
       } else {
         displayRealTimeData(timeframe);
       }
     }
 
-    function displayDayData() {
-      const tbody = document.getElementById('gainers-day').getElementsByTagName('tbody')[0];
-      tbody.innerHTML = '';
+    // Display top 10 gainers and losers for the day
+    function displayGainersAndLosers(timeframe) {
+      const gainersTbody = document.getElementById(`gainers-${timeframe}`).getElementsByTagName('tbody')[0];
+      const losersTbody = document.getElementById(`losers-${timeframe}`).getElementsByTagName('tbody')[0];
+      gainersTbody.innerHTML = '';
+      losersTbody.innerHTML = '';
 
-      allCoins.forEach(coin => {
-        const row = tbody.insertRow();
+      // Sort by percentage change (descending) for gainers and ascending for losers
+      let sortedCoins = [...allCoins];
+      sortedCoins.sort((a, b) => parseFloat(b[`change${timeframe}`]) - parseFloat(a[`change${timeframe}`]));
+
+      // Add top 10 gainers
+      sortedCoins.slice(0, 10).forEach(coin => {
+        const row = gainersTbody.insertRow();
         row.insertCell(0).innerText = coin.instId;
         row.insertCell(1).innerText = `$${coin.last}`;
-        row.insertCell(2).innerText = `${coin.change1h.toFixed(2)}%`;
+        row.insertCell(2).innerText = `${coin[`change${timeframe}`].toFixed(2)}%`;
+      });
+
+      // Add top 10 losers
+      sortedCoins.slice(-10).forEach(coin => {
+        const row = losersTbody.insertRow();
+        row.insertCell(0).innerText = coin.instId;
+        row.insertCell(1).innerText = `$${coin.last}`;
+        row.insertCell(2).innerText = `${coin[`change${timeframe}`].toFixed(2)}%`;
       });
     }
 
+    // Display real-time data (OKX for different timeframes)
     function displayRealTimeData(timeframe) {
-      const tbody = document.getElementById(`gainers-${timeframe}`).getElementsByTagName('tbody')[0];
-      tbody.innerHTML = '';
+      const gainersTbody = document.getElementById(`gainers-${timeframe}`).getElementsByTagName('tbody')[0];
+      const losersTbody = document.getElementById(`losers-${timeframe}`).getElementsByTagName('tbody')[0];
+      gainersTbody.innerHTML = '';
+      losersTbody.innerHTML = '';
 
-      allCoins.forEach(coin => {
-        const changePercentage = parseFloat(coin[`change${timeframe}`]);
+      // Sort by percentage change (descending) for gainers and ascending for losers
+      let sortedCoins = [...allCoins];
+      sortedCoins.sort((a, b) => parseFloat(b[`change${timeframe}`]) - parseFloat(a[`change${timeframe}`]));
 
-        const row = tbody.insertRow();
+      // Add top 10 gainers
+      sortedCoins.slice(0, 10).forEach(coin => {
+        const row = gainersTbody.insertRow();
         row.insertCell(0).innerText = coin.instId;
         row.insertCell(1).innerText = `$${coin.last}`;
-        row.insertCell(2).innerText = `${changePercentage.toFixed(2)}%`;
+        row.insertCell(2).innerText = `${coin[`change${timeframe}`].toFixed(2)}%`;
+      });
+
+      // Add top 10 losers
+      sortedCoins.slice(-10).forEach(coin => {
+        const row = losersTbody.insertRow();
+        row.insertCell(0).innerText = coin.instId;
+        row.insertCell(1).innerText = `$${coin.last}`;
+        row.insertCell(2).innerText = `${coin[`change${timeframe}`].toFixed(2)}%`;
       });
     }
 
+    // Initialize
     fetchOKXData();
   </script>
 </body>

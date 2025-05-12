@@ -1,81 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>OKX USDT Perpetual Screener</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Screener</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    h2 { margin-top: 40px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    /* Tab styles */
+    .tabs {
+      display: flex;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      background-color: #f1f1f1;
+      border: 1px solid #ddd;
+      margin-right: 5px;
+      text-align: center;
+    }
+    .tab:hover {
+      background-color: #ddd;
+    }
+    .tab.active {
+      background-color: #4CAF50;
+      color: white;
+    }
+    /* Table styles */
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    #output {
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <h1>OKX USDT Perpetual Screener</h1>
-  <div id="gain-table">Loading gainers...</div>
-  <div id="lose-table">Loading losers...</div>
+
+  <h1>Crypto Screener</h1>
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('day')">Top 10 (1 Day)</div>
+    <div class="tab" onclick="showTab('4h')">Top 10 (4 Hours)</div>
+    <div class="tab" onclick="showTab('1h')">Top 10 (1 Hour)</div>
+    <div class="tab" onclick="showTab('15m')">Top 10 (15 Minutes)</div>
+  </div>
+
+  <!-- Tab content -->
+  <div id="day" class="tab-content">
+    <h3>Top 10 Gainers & Losers - 1 Day</h3>
+    <table id="gainers-day">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (24h)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="4h" class="tab-content" style="display:none;">
+    <h3>Top 10 Gainers & Losers - 4 Hours</h3>
+    <table id="gainers-4h">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (4h)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="1h" class="tab-content" style="display:none;">
+    <h3>Top 10 Gainers & Losers - 1 Hour</h3>
+    <table id="gainers-1h">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (1h)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="15m" class="tab-content" style="display:none;">
+    <h3>Top 10 Gainers & Losers - 15 Minutes</h3>
+    <table id="gainers-15m">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (15m)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <script>
-    let okxCoins = [];
-    let coinGeckoData = {};
+    let allCoins = [];
+    let marketData = {};
 
-    // Fetch OKX USDT Perpetual (SWAP) tickers
-    fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP')
+    // Fetch OKX data
+    fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT')
       .then(res => res.json())
       .then(data => {
-        okxCoins = data.data.filter(c => c.instId.endsWith('USDT-SWAP'));
-        fetchCoinGecko();
+        allCoins = data.data;
+        fetchCoinGeckoData();
       });
 
-    // Fetch CoinGecko market data
-    function fetchCoinGecko() {
-      fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=250&page=1')
+    // Fetch CoinGecko data for market cap and other info
+    function fetchCoinGeckoData() {
+      fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd')
         .then(res => res.json())
         .then(data => {
+          // Store CoinGecko data in an object with coin symbol as key
           data.forEach(coin => {
-            coinGeckoData[coin.symbol.toUpperCase()] = coin;
+            marketData[coin.id] = coin;
           });
-          processAndDisplay();
+          mergeData();
         });
     }
 
-    function processAndDisplay() {
-      const combined = okxCoins.map(c => {
-        const symbol = c.instId.split('-')[0]; // e.g. BTC from BTC-USDT-SWAP
-        const gecko = coinGeckoData[symbol];
+    // Merge OKX and CoinGecko data and display it based on the selected tab
+    function mergeData() {
+      const sorted = allCoins
+        .filter(coin => coin.symbol && coin.price_change_percentage_24h !== null)
+        .sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h);
 
-        if (gecko) {
-          return {
-            symbol: symbol,
-            price: parseFloat(c.last),
-            change: gecko.price_change_percentage_24h || 0
-          };
-        }
-      }).filter(Boolean);
-
-      const sorted = combined.sort((a, b) => b.change - a.change);
+      // Top 10 Gainers & Losers for Day (24h)
       const topGainers = sorted.slice(0, 10);
       const topLosers = sorted.slice(-10).reverse();
 
-      displayTable(topGainers, "Top 10 Gainers", "gain-table");
-      displayTable(topLosers, "Top 10 Losers", "lose-table");
+      displayTable('day', topGainers, topLosers);
+      displayTable('4h', topGainers, topLosers); // You can replace with 4-hour data
+      displayTable('1h', topGainers, topLosers); // You can replace with 1-hour data
+      displayTable('15m', topGainers, topLosers); // You can replace with 15-minute data
     }
 
-    function displayTable(data, title, containerId) {
-      let html = `<h2>${title}</h2>`;
-      html += `<table>
-        <tr><th>Symbol</th><th>Price</th><th>24h Change (%)</th></tr>`;
-      data.forEach(item => {
-        html += `<tr>
-          <td>${item.symbol}</td>
-          <td>$${item.price.toFixed(2)}</td>
-          <td style="color:${item.change >= 0 ? 'green' : 'red'}">${item.change.toFixed(2)}%</td>
-        </tr>`;
+    // Display the combined data for a specific timeframe
+    function displayTable(timeframe, gainers, losers) {
+      const gainersTable = document.getElementById(`gainers-${timeframe}`).querySelector('tbody');
+      const losersTable = document.getElementById(`losers-${timeframe}`).querySelector('tbody');
+
+      // Display Gainers
+      gainers.forEach(coin => {
+        gainersTable.innerHTML += `
+          <tr>
+            <td>${coin.symbol.toUpperCase()}</td>
+            <td>$${coin.current_price}</td>
+            <td style="color:green;">${coin.price_change_percentage_24h.toFixed(2)}%</td>
+          </tr>`;
       });
-      html += `</table>`;
-      document.getElementById(containerId).innerHTML = html;
+
+      // Display Losers
+      losers.forEach(coin => {
+        losersTable.innerHTML += `
+          <tr>
+            <td>${coin.symbol.toUpperCase()}</td>
+            <td>$${coin.current_price}</td>
+            <td style="color:red;">${coin.price_change_percentage_24h.toFixed(2)}%</td>
+          </tr>`;
+      });
+    }
+
+    // Show the selected tab and hide the others
+    function showTab(timeframe) {
+      const tabs = document.querySelectorAll('.tab');
+      const contents = document.querySelectorAll('.tab-content');
+      
+      tabs.forEach(tab => tab.classList.remove('active'));
+      contents.forEach(content => content.style.display = 'none');
+
+      // Activate the selected tab
+      document.querySelector(`.tab[onclick="showTab('${timeframe}')"]`).classList.add('active');
+      document.getElementById(timeframe).style.display = 'block';
     }
   </script>
+
 </body>
 </html>

@@ -1,1 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Screener (OKX + CoinGecko)</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .coin { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Crypto Screener (OKX + CoinGecko)</h1>
+  <input type="text" id="search" placeholder="Search by symbol (e.g. BTC-USDT)">
+  <div id="output">Loading...</div>
+
+  <script>
+    let allCoins = [];
+    let marketData = {};
+
+    // Fetch OKX data
+    fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT')
+      .then(res => res.json())
+      .then(data => {
+        allCoins = data.data;
+        fetchCoinGeckoData();
+      });
+
+    // Fetch CoinGecko data for market cap and other info
+    function fetchCoinGeckoData() {
+      fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd')
+        .then(res => res.json())
+        .then(data => {
+          // Store CoinGecko data in an object with coin symbol as key
+          data.forEach(coin => {
+            marketData[coin.id] = coin;
+          });
+          mergeData();
+        });
+    }
+
+    // Merge OKX and CoinGecko data
+    function mergeData() {
+      const combinedData = allCoins.map(coin => {
+        const coinSymbol = coin.instId.split('-')[0]; // Get the coin symbol (e.g., BTC)
+        const coinMarketData = marketData[coinSymbol.toLowerCase()]; // Get CoinGecko data
+
+        if (coinMarketData) {
+          return {
+            instId: coin.instId,
+            lastPrice: coin.last,
+            marketCap: coinMarketData.market_cap,
+            volume: coinMarketData.total_volumes,
+            symbol: coinSymbol
+          };
+        }
+      }).filter(item => item !== undefined);
+
+      displayCoins(combinedData);
+    }
+
+    // Display the combined data
+    function displayCoins(coins) {
+      const output = document.getElementById('output');
+      output.innerHTML = coins.map(item => `
+        <div class="coin">
+          <strong>${item.instId}</strong> - Last Price: ${item.lastPrice} - Market Cap: $${item.marketCap.toLocaleString()} - Volume: $${item.volume.toLocaleString()}
+        </div>
+      `).join('');
+    }
+
+    // Filter coins based on user search input
+    document.getElementById('search').addEventListener('input', function () {
+      const keyword = this.value.toUpperCase();
+      const filtered = allCoins.filter(c => c.instId.includes(keyword));
+      displayCoins(filtered);
+    });
+  </script>
+</body>
+</html>
 

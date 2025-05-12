@@ -1,98 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Top 10 Gainers and Losers (1m, OKX Futures)</title>
+  <meta charset="UTF-8">
+  <title>Top 10 Gainers and Losers (1m)</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-    th { background-color: #f2f2f2; }
-    h2 { margin-top: 40px; }
+    body { font-family: Arial; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 8px; border: 1px solid #ccc; text-align: center; }
+    th { background-color: #f0f0f0; }
   </style>
 </head>
 <body>
 
-<h1>Top 10 Gainers and Losers - 1 Minute (OKX Perpetual Futures)</h1>
-
-<h2>Top 10 Gainers</h2>
+<h2>Top 10 Gainers - USDT Perpetual (1m)</h2>
 <table id="gainers">
-  <thead>
-    <tr><th>Symbol</th><th>Price</th><th>% Change (1m)</th></tr>
-  </thead>
+  <thead><tr><th>Symbol</th><th>Price</th><th>Change (%)</th></tr></thead>
   <tbody></tbody>
 </table>
 
-<h2>Top 10 Losers</h2>
+<h2>Top 10 Losers - USDT Perpetual (1m)</h2>
 <table id="losers">
-  <thead>
-    <tr><th>Symbol</th><th>Price</th><th>% Change (1m)</th></tr>
-  </thead>
+  <thead><tr><th>Symbol</th><th>Price</th><th>Change (%)</th></tr></thead>
   <tbody></tbody>
 </table>
 
 <script>
-  async function fetchUSDTPerpetualSymbols() {
-    const res = await fetch('https://www.okx.com/api/v5/public/instruments?instType=SWAP');
-    const data = await res.json();
-    return data.data
-      .filter(item => item.instId.endsWith('-USDT-SWAP'))
-      .map(item => item.instId);
-  }
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-  async function fetch1mChange(symbol) {
-    const res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=1m&limit=2`);
-    const data = await res.json();
-    const candles = data.data;
+async function getSymbols() {
+  const res = await fetch('https://www.okx.com/api/v5/public/instruments?instType=SWAP');
+  const json = await res.json();
+  return json.data
+    .filter(item => item.instId.endsWith('-USDT-SWAP'))
+    .map(item => item.instId);
+}
+
+async function getChange(symbol) {
+  try {
+    const url = `https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=1m&limit=2`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const candles = json.data;
     if (candles.length >= 2) {
-      const current = parseFloat(candles[0][4]); // close price
-      const previous = parseFloat(candles[1][4]); // previous close
-      const change = ((current - previous) / previous) * 100;
-      return { symbol, price: current.toFixed(4), change: change.toFixed(2) };
+      const prevClose = parseFloat(candles[1][4]);
+      const currClose = parseFloat(candles[0][4]);
+      const change = ((currClose - prevClose) / prevClose) * 100;
+      return { symbol, price: currClose.toFixed(4), change: change.toFixed(2) };
     }
-    return null;
+  } catch (e) {
+    console.error(`Error fetching ${symbol}:`, e);
+  }
+  return null;
+}
+
+async function main() {
+  const symbols = await getSymbols();
+  const results = [];
+
+  for (let i = 0; i < symbols.length; i++) {
+    const result = await getChange(symbols[i]);
+    if (result) results.push(result);
+    await sleep(100); // avoid hitting API rate limits
   }
 
-  async function loadData() {
-    const symbols = await fetchUSDTPerpetualSymbols();
-    const results = [];
+  const sorted = results.sort((a, b) => b.change - a.change);
+  const topGainers = sorted.slice(0, 10);
+  const topLosers = sorted.slice(-10).reverse();
 
-    for (let i = 0; i < symbols.length; i++) {
-      try {
-        const result = await fetch1mChange(symbols[i]);
-        if (result) results.push(result);
-      } catch (e) {
-        console.error("Error with", symbols[i], e);
-      }
-    }
+  const gainersBody = document.querySelector("#gainers tbody");
+  const losersBody = document.querySelector("#losers tbody");
+  gainersBody.innerHTML = "";
+  losersBody.innerHTML = "";
 
-    const sorted = results.sort((a, b) => b.change - a.change);
-    const topGainers = sorted.slice(0, 10);
-    const topLosers = sorted.slice(-10).reverse();
+  topGainers.forEach(item => {
+    gainersBody.innerHTML += `<tr><td>${item.symbol}</td><td>$${item.price}</td><td style="color:green;">${item.change}%</td></tr>`;
+  });
 
-    const gainersBody = document.querySelector("#gainers tbody");
-    const losersBody = document.querySelector("#losers tbody");
+  topLosers.forEach(item => {
+    losersBody.innerHTML += `<tr><td>${item.symbol}</td><td>$${item.price}</td><td style="color:red;">${item.change}%</td></tr>`;
+  });
+}
 
-    gainersBody.innerHTML = "";
-    losersBody.innerHTML = "";
-
-    topGainers.forEach(item => {
-      const row = gainersBody.insertRow();
-      row.insertCell(0).innerText = item.symbol;
-      row.insertCell(1).innerText = `$${item.price}`;
-      row.insertCell(2).innerText = `${item.change}%`;
-    });
-
-    topLosers.forEach(item => {
-      const row = losersBody.insertRow();
-      row.insertCell(0).innerText = item.symbol;
-      row.insertCell(1).innerText = `$${item.price}`;
-      row.insertCell(2).innerText = `${item.change}%`;
-    });
-  }
-
-  loadData();
+main();
 </script>
 
 </body>

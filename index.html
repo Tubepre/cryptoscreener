@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Crypto Screener</title>
+  <title>Crypto Screener (OKX)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -49,7 +49,7 @@
 </head>
 <body>
 
-  <h1>Crypto Screener</h1>
+  <h1>Crypto Screener (OKX)</h1>
   <div class="tabs">
     <div class="tab active" onclick="showTab('day')">Top 10 (1 Day)</div>
     <div class="tab" onclick="showTab('4h')">Top 10 (4 Hours)</div>
@@ -144,96 +144,69 @@
 
   <script>
     let allCoins = [];
-    let marketData = {};
 
-    // Fetch OKX data
-    fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT')
-      .then(res => res.json())
-      .then(data => {
-        allCoins = data.data;
-        fetchCoinGeckoData();
-      });
-
-    // Fetch CoinGecko data for market cap and other info
-    function fetchCoinGeckoData() {
-      fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd')
+    // Fetch OKX market data
+    function fetchOKXData() {
+      fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT')
         .then(res => res.json())
         .then(data => {
-          // Store CoinGecko data in an object with coin symbol as key
-          data.forEach(coin => {
-            marketData[coin.id] = coin;
-          });
-          mergeData();
+          allCoins = data.data;
+          showTab('day');
         });
     }
 
-    // Merge OKX and CoinGecko data and display it based on the selected tab
-    function mergeData() {
-      const sorted = allCoins
-        .filter(coin => coin.symbol && coin.price_change_percentage_24h !== null)
-        .sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h);
-
-      // Top 10 Gainers & Losers for Day (24h)
-      const topGainers = sorted.slice(0, 10);
-      const topLosers = sorted.slice(-10).reverse();
-
-      displayTable('day', topGainers, topLosers);
-      displayTable('4h', topGainers, topLosers); // Replace with 4-hour data
-      displayTable('1h', topGainers, topLosers); // Replace with 1-hour data
-      displayTable('30m', topGainers, topLosers); // Replace with 30-minute data
-      displayTable('15m', topGainers, topLosers); // Replace with 15-minute data
-      displayTable('5m', topGainers, topLosers); // Replace with 5-minute data
-      displayTable('3m', topGainers, topLosers); // Replace with 3-minute data
-      displayTable('1m', topGainers, topLosers); // Replace with 1-minute data
-    }
-
-    // Display the combined data for a specific timeframe
-    function displayTable(timeframe, gainers, losers) {
-      const gainersTable = document.getElementById(`gainers-${timeframe}`).querySelector('tbody');
-      const losersTable = document.getElementById(`losers-${timeframe}`).querySelector('tbody');
-
-      // Display Gainers
-      gainers.forEach(coin => {
-        gainersTable.innerHTML += `
-          <tr>
-            <td>${coin.symbol.toUpperCase()}</td>
-            <td>$${coin.current_price}</td>
-            <td style="color:green;">${coin.price_change_percentage_24h.toFixed(2)}%</td>
-          </tr>`;
-      });
-
-      // Display Losers
-      losers.forEach(coin => {
-        losersTable.innerHTML += `
-          <tr>
-            <td>${coin.symbol.toUpperCase()}</td>
-            <td>$${coin.current_price}</td>
-            <td style="color:red;">${coin.price_change_percentage_24h.toFixed(2)}%</td>
-          </tr>`;
-      });
-    }
-
-    // Switch tab visibility
-    function showTab(tabName) {
+    // Show the respective tab and display data
+    function showTab(timeframe) {
       // Hide all tabs
-      const tabContents = document.querySelectorAll('.tab-content');
-      tabContents.forEach(tab => {
-        tab.style.display = 'none';
-      });
+      const tabs = document.querySelectorAll('.tab-content');
+      tabs.forEach(tab => tab.style.display = 'none');
 
-      // Show selected tab
-      document.getElementById(tabName).style.display = 'block';
+      // Remove active class from all tabs
+      const allTabs = document.querySelectorAll('.tab');
+      allTabs.forEach(tab => tab.classList.remove('active'));
 
-      // Update active tab
-      const tabs = document.querySelectorAll('.tab');
-      tabs.forEach(tab => {
-        tab.classList.remove('active');
-      });
-      document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
+      // Show the selected tab
+      document.getElementById(timeframe).style.display = 'block';
+
+      // Set active tab
+      document.querySelector(`.tab[onclick="showTab('${timeframe}')"]`).classList.add('active');
+
+      // Fetch and display data for the selected timeframe
+      if (timeframe === 'day') {
+        displayDayData();
+      } else {
+        displayRealTimeData(timeframe);
+      }
     }
 
-    // Initially show the 'day' tab
-    showTab('day');
-  </script>
-</body>
-</html>
+    // Display top 10 data for the day (OKX)
+    function displayDayData() {
+      const tbody = document.getElementById('gainers-day').getElementsByTagName('tbody')[0];
+      tbody.innerHTML = '';
+
+      allCoins.forEach(coin => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = coin.instId;
+        row.insertCell(1).innerText = `$${coin.last}`;
+        row.insertCell(2).innerText = `${coin.change1h.toFixed(2)}%`;
+      });
+    }
+
+    // Display real-time data (OKX for different timeframes)
+    function displayRealTimeData(timeframe) {
+      const tbody = document.getElementById(`gainers-${timeframe}`).getElementsByTagName('tbody')[0];
+      tbody.innerHTML = '';
+
+      allCoins.forEach(coin => {
+        const changePercentage = parseFloat(coin[`change${timeframe}`]);
+
+        const row = tbody.insertRow();
+        row.insertCell(0).innerText = coin.instId;
+        row.insertCell(1).innerText = $${coin.last};
+        row.insertCell(2).innerText = ${changePercentage.toFixed(2)}%;
+      });
+    }
+
+      // Initialize
+      fetchOKXData();
+    </script> </body> </html>

@@ -2,118 +2,98 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>OKX Futures Top Gainers and Losers - 1 Minute</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Top 10 Gainers and Losers (1m, OKX Futures)</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-    h2 {
-      text-align: center;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-bottom: 40px;
-    }
-    th, td {
-      border: 1px solid #999;
-      padding: 8px;
-      text-align: left;
-    }
-    th {
-      background-color: #eee;
-    }
-    .positive {
-      color: green;
-    }
-    .negative {
-      color: red;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background-color: #f2f2f2; }
+    h2 { margin-top: 40px; }
   </style>
 </head>
 <body>
 
-  <h2>Top 10 Gainers and Losers (1m) — Futures USDT (OKX)</h2>
+<h1>Top 10 Gainers and Losers - 1 Minute (OKX Perpetual Futures)</h1>
 
-  <h3>Top 10 Gainers</h3>
-  <table id="gainers">
-    <thead>
-      <tr><th>Symbol</th><th>Last Price</th><th>1m Change %</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<h2>Top 10 Gainers</h2>
+<table id="gainers">
+  <thead>
+    <tr><th>Symbol</th><th>Price</th><th>% Change (1m)</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
-  <h3>Top 10 Losers</h3>
-  <table id="losers">
-    <thead>
-      <tr><th>Symbol</th><th>Last Price</th><th>1m Change %</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<h2>Top 10 Losers</h2>
+<table id="losers">
+  <thead>
+    <tr><th>Symbol</th><th>Price</th><th>% Change (1m)</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
-  <script>
-    const symbols = [
-      'BTC-USDT-SWAP',
-      'ETH-USDT-SWAP',
-      'LTC-USDT-SWAP',
-      'XRP-USDT-SWAP',
-      'ADA-USDT-SWAP',
-      'DOT-USDT-SWAP',
-      'LINK-USDT-SWAP',
-      'BCH-USDT-SWAP',
-      'EOS-USDT-SWAP',
-      'TRX-USDT-SWAP'
-    ];
+<script>
+  async function fetchUSDTPerpetualSymbols() {
+    const res = await fetch('https://www.okx.com/api/v5/public/instruments?instType=SWAP');
+    const data = await res.json();
+    return data.data
+      .filter(item => item.instId.endsWith('-USDT-SWAP'))
+      .map(item => item.instId);
+  }
 
-    async function fetchCandleData(symbol) {
-      const url = `https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=1m&limit=2`;
+  async function fetch1mChange(symbol) {
+    const res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=1m&limit=2`);
+    const data = await res.json();
+    const candles = data.data;
+    if (candles.length >= 2) {
+      const current = parseFloat(candles[0][4]); // close price
+      const previous = parseFloat(candles[1][4]); // previous close
+      const change = ((current - previous) / previous) * 100;
+      return { symbol, price: current.toFixed(4), change: change.toFixed(2) };
+    }
+    return null;
+  }
+
+  async function loadData() {
+    const symbols = await fetchUSDTPerpetualSymbols();
+    const results = [];
+
+    for (let i = 0; i < symbols.length; i++) {
       try {
-        const response = await fetch(url);
-        const json = await response.json();
-        if (json.code !== '0' || !json.data || json.data.length < 1) {
-          console.error(`Error fetching data for ${symbol}:`, json.msg || 'No data');
-          return null;
-        }
-        const candle = json.data[0];
-        const open = parseFloat(candle[1]);
-        const close = parseFloat(candle[4]);
-        const change = ((close - open) / open) * 100;
-        return {
-          symbol,
-          last: close.toFixed(4),
-          change: change.toFixed(2)
-        };
-      } catch (err) {
-        console.error(`Error fetching data for ${symbol}:`, err);
-        return null;
+        const result = await fetch1mChange(symbols[i]);
+        if (result) results.push(result);
+      } catch (e) {
+        console.error("Error with", symbols[i], e);
       }
     }
 
-    async function updateData() {
-      const promises = symbols.map(fetchCandleData);
-      const results = await Promise.all(promises);
-      const validResults = results.filter(r => r !== null);
+    const sorted = results.sort((a, b) => b.change - a.change);
+    const topGainers = sorted.slice(0, 10);
+    const topLosers = sorted.slice(-10).reverse();
 
-      const gainers = [...validResults].sort((a, b) => b.change - a.change).slice(0, 10);
-      const losers = [...validResults].sort((a, b) => a.change - b.change).slice(0, 10);
+    const gainersBody = document.querySelector("#gainers tbody");
+    const losersBody = document.querySelector("#losers tbody");
 
-      const gainersBody = document.querySelector('#gainers tbody');
-      const losersBody = document.querySelector('#losers tbody');
-      gainersBody.innerHTML = '';
-      losersBody.innerHTML = '';
+    gainersBody.innerHTML = "";
+    losersBody.innerHTML = "";
 
-      gainers.forEach(row => {
-        gainersBody.innerHTML += `<tr><td>${row.symbol}</td><td>${row.last}</td><td class="positive">${row.change}%</td></tr>`;
-      });
+    topGainers.forEach(item => {
+      const row = gainersBody.insertRow();
+      row.insertCell(0).innerText = item.symbol;
+      row.insertCell(1).innerText = `$${item.price}`;
+      row.insertCell(2).innerText = `${item.change}%`;
+    });
 
-      losers.forEach(row => {
-        losersBody.innerHTML += `<tr><td>${row.symbol}</td><td>${row.last}</td><td class="negative">${row.change}%</td></tr>`;
-      });
-    }
+    topLosers.forEach(item => {
+      const row = losersBody.insertRow();
+      row.insertCell(0).innerText = item.symbol;
+      row.insertCell(1).innerText = `$${item.price}`;
+      row.insertCell(2).innerText = `${item.change}%`;
+    });
+  }
 
-    updateData();
-    setInterval(updateData, 60000); // Refresh every 1 minute
-  </script>
+  loadData();
+</script>
+
 </body>
 </html>

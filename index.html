@@ -54,7 +54,11 @@
     <div class="tab active" onclick="showTab('day')">Top 10 (1 Day)</div>
     <div class="tab" onclick="showTab('4h')">Top 10 (4 Hours)</div>
     <div class="tab" onclick="showTab('1h')">Top 10 (1 Hour)</div>
+    <div class="tab" onclick="showTab('30m')">Top 10 (30 Minutes)</div>
     <div class="tab" onclick="showTab('15m')">Top 10 (15 Minutes)</div>
+    <div class="tab" onclick="showTab('5m')">Top 10 (5 Minutes)</div>
+    <div class="tab" onclick="showTab('3m')">Top 10 (3 Minutes)</div>
+    <div class="tab" onclick="showTab('1m')">Top 10 (1 Minute)</div>
   </div>
 
   <!-- Tab content -->
@@ -88,11 +92,51 @@
     </table>
   </div>
 
+  <div id="30m" class="tab-content" style="display:none;">
+    <h3>Top 10 Gainers & Losers - 30 Minutes</h3>
+    <table id="gainers-30m">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (30m)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
   <div id="15m" class="tab-content" style="display:none;">
     <h3>Top 10 Gainers & Losers - 15 Minutes</h3>
     <table id="gainers-15m">
       <thead>
         <tr><th>Symbol</th><th>Price</th><th>% Change (15m)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="5m" class="tab-content" style="display:none;">
+    <h3>Top 10 Gainers & Losers - 5 Minutes</h3>
+    <table id="gainers-5m">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (5m)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="3m" class="tab-content" style="display:none;">
+    <h3>Top 10 Gainers & Losers - 3 Minutes</h3>
+    <table id="gainers-3m">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (3m)</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="1m" class="tab-content" style="display:none;">
+    <h3>Top 10 Gainers & Losers - 1 Minute</h3>
+    <table id="gainers-1m">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>% Change (1m)</th></tr>
       </thead>
       <tbody></tbody>
     </table>
@@ -134,9 +178,13 @@
       const topLosers = sorted.slice(-10).reverse();
 
       displayTable('day', topGainers, topLosers);
-      displayTable('4h', topGainers, topLosers); // You can replace with 4-hour data
-      displayTable('1h', topGainers, topLosers); // You can replace with 1-hour data
-      displayTable('15m', topGainers, topLosers); // You can replace with 15-minute data
+      displayTable('4h', topGainers, topLosers); // Replace with 4-hour data
+      displayTable('1h', topGainers, topLosers); // Replace with 1-hour data
+      displayTable('30m', topGainers, topLosers); // Replace with 30-minute data
+      displayTable('15m', topGainers, topLosers); // Replace with 15-minute data
+      displayTable('5m', topGainers, topLosers); // Replace with 5-minute data
+      displayTable('3m', topGainers, topLosers); // Replace with 3-minute data
+      displayTable('1m', topGainers, topLosers); // Replace with 1-minute data
     }
 
     // Display the combined data for a specific timeframe
@@ -165,19 +213,27 @@
       });
     }
 
-    // Show the selected tab and hide the others
-    function showTab(timeframe) {
+    // Switch tab visibility
+    function showTab(tabName) {
+      // Hide all tabs
+      const tabContents = document.querySelectorAll('.tab-content');
+      tabContents.forEach(tab => {
+        tab.style.display = 'none';
+      });
+
+      // Show selected tab
+      document.getElementById(tabName).style.display = 'block';
+
+      // Update active tab
       const tabs = document.querySelectorAll('.tab');
-      const contents = document.querySelectorAll('.tab-content');
-      
-      tabs.forEach(tab => tab.classList.remove('active'));
-      contents.forEach(content => content.style.display = 'none');
-
-      // Activate the selected tab
-      document.querySelector(`.tab[onclick="showTab('${timeframe}')"]`).classList.add('active');
-      document.getElementById(timeframe).style.display = 'block';
+      tabs.forEach(tab => {
+        tab.classList.remove('active');
+      });
+      document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
     }
-  </script>
 
+    // Initially show the 'day' tab
+    showTab('day');
+  </script>
 </body>
 </html>

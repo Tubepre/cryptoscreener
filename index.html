@@ -2,53 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Top 10 Gainers & Losers (24h)</title>
+  <title>OKX Futures (USDT Perpetual) Screener</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background-color: #f0f0f0; }
     h2 { margin-top: 40px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
   </style>
 </head>
 <body>
-  <h1>Crypto Market - Top Gainers & Losers (24h)</h1>
-  <div id="tables">Loading...</div>
+  <h1>OKX USDT Perpetual Futures Screener</h1>
+  <div id="gain-table">Loading gainers...</div>
+  <div id="lose-table">Loading losers...</div>
 
   <script>
-    async function loadData() {
-      const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=250');
-      const coins = await res.json();
+    let okxCoins = [];
+    let coinGeckoData = {};
 
-      // Sort by 24h change
-      const sorted = coins.sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h);
+    // Fetch OKX USDT Perpetual (SWAP) tickers
+    fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP')
+      .then(res => res.json())
+      .then(data => {
+        okxCoins = data.data.filter(c => c.instId.endsWith('USDT-SWAP'));
+        fetchCoinGecko();
+      });
 
+    // Fetch CoinGecko market data
+    function fetchCoinGecko() {
+      fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=250&page=1')
+        .then(res => res.json())
+        .then(data => {
+          data.forEach(coin => {
+            coinGeckoData[coin.symbol.toUpperCase()] = coin;
+          });
+          processAndDisplay();
+        });
+    }
+
+    function processAndDisplay() {
+      const combined = okxCoins.map(c => {
+        const symbol = c.instId.split('-')[0]; // BTC from BTC-USDT-SWAP
+        const gecko = coinGeckoData[symbol];
+
+        if (gecko) {
+          return {
+            name: gecko.name,
+            symbol: symbol,
+            price: parseFloat(c.last),
+            change: gecko.price_change_percentage_24h || 0
+          };
+        }
+      }).filter(Boolean);
+
+      const sorted = combined.sort((a, b) => b.change - a.change);
       const topGainers = sorted.slice(0, 10);
       const topLosers = sorted.slice(-10).reverse();
 
-      const tableGainers = generateTable(topGainers, 'Top 10 Gainers (24h)');
-      const tableLosers = generateTable(topLosers, 'Top 10 Losers (24h)');
-
-      document.getElementById('tables').innerHTML = tableGainers + tableLosers;
+      displayTable(topGainers, "Top 10 Gainers", "gain-table");
+      displayTable(topLosers, "Top 10 Losers", "lose-table");
     }
 
-    function generateTable(data, title) {
-      let html = `<h2>${title}</h2><table><tr><th>Name</th><th>Price (USD)</th><th>% Change (24h)</th></tr>`;
-      data.forEach(coin => {
+    function displayTable(data, title, containerId) {
+      let html = `<h2>${title}</h2>`;
+      html += `<table>
+        <tr><th>Name</th><th>Symbol</th><th>Price</th><th>24h Change (%)</th></tr>`;
+      data.forEach(item => {
         html += `<tr>
-          <td>${coin.name}</td>
-          <td>$${coin.current_price.toFixed(2)}</td>
-          <td style="color: ${coin.price_change_percentage_24h >= 0 ? 'green' : 'red'}">
-            ${coin.price_change_percentage_24h.toFixed(2)}%
-          </td>
+          <td>${item.name}</td>
+          <td>${item.symbol}</td>
+          <td>$${item.price.toFixed(2)}</td>
+          <td style="color:${item.change >= 0 ? 'green' : 'red'}">${item.change.toFixed(2)}%</td>
         </tr>`;
       });
-      html += '</table>';
-      return html;
+      html += `</table>`;
+      document.getElementById(containerId).innerHTML = html;
     }
-
-    loadData();
   </script>
 </body>
 </html>
